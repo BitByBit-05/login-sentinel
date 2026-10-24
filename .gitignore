@@ -11,3 +11,6 @@ venv/
 *.db
 report.md
 report.json
+.coverage
+htmlcov/
+coverage.xml

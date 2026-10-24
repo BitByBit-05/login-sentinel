@@ -13,7 +13,8 @@ authors = [{ name = "Ayush Ahir" }]
 dependencies = []  # standard library only
 
 [project.optional-dependencies]
-dev = ["pytest>=7"]
+dev = ["pytest>=7", "pytest-cov>=4"]
+charts = ["matplotlib>=3.7"]  # only needed to regenerate the README images
 
 [project.scripts]
 login-sentinel = "login_sentinel.cli:main"
@@ -23,3 +24,12 @@ packages = ["login_sentinel"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["login_sentinel"]
+# __main__.py is tested by test_runs_as_python_module, which starts a separate
+# Python process that coverage cannot measure.
+omit = ["login_sentinel/__main__.py"]
+
+[tool.coverage.report]
+show_missing = true

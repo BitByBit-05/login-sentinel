@@ -1,0 +1,67 @@
+{
+  // Run and Debug panel (Ctrl+Shift+D): pick a configuration, press F5.
+  // Set a breakpoint anywhere in login_sentinel/ to step through the detection logic.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Analyze sample logs (text report)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "login_sentinel",
+      "args": ["sample_data/auth.log", "sample_data/windows_security.csv", "--year", "2026"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Analyze sample logs (Markdown report to report.md)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "login_sentinel",
+      "args": ["sample_data/auth.log", "sample_data/windows_security.csv", "--year", "2026", "-f", "markdown", "-o", "report.md"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Analyze sample logs and save SQLite database (events.db)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "login_sentinel",
+      "args": ["sample_data/auth.log", "sample_data/windows_security.csv", "--year", "2026", "--db", "events.db"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Analyze a log file of your choice",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "login_sentinel",
+      "args": ["${input:logPath}", "--year", "${input:logYear}"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Debug the test file that is open",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["${file}", "-v"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ],
+  "inputs": [
+    {
+      "id": "logPath",
+      "type": "promptString",
+      "description": "Path to an auth.log or Windows Security .csv",
+      "default": "sample_data/auth.log"
+    },
+    {
+      "id": "logYear",
+      "type": "promptString",
+      "description": "Year the auth.log starts in",
+      "default": "2026"
+    }
+  ]
+}

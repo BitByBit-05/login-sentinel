@@ -1,0 +1,46 @@
+{
+  // Terminal > Run Task... (or Ctrl+Shift+P > "Tasks: Run Task").
+  // Run "1. Setup" once first; the other tasks use the Python interpreter you selected in VS Code.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "1. Setup: create .venv and install",
+      "type": "shell",
+      "command": "python3 -m venv .venv && .venv/bin/python -m pip install --upgrade pip && .venv/bin/python -m pip install -e \".[dev,charts]\"",
+      "windows": {
+        "command": "python -m venv .venv; .venv\\Scripts\\python -m pip install --upgrade pip; .venv\\Scripts\\python -m pip install -e \".[dev,charts]\""
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "2. Run all tests with coverage",
+      "type": "shell",
+      "command": "${command:python.interpreterPath}",
+      "args": ["-m", "pytest", "-v", "--cov", "--cov-report=term-missing"],
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "3. Run on sample logs",
+      "type": "shell",
+      "command": "${command:python.interpreterPath}",
+      "args": ["-m", "login_sentinel", "sample_data/auth.log", "sample_data/windows_security.csv", "--year", "2026"],
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "4. Build HTML coverage report (open htmlcov/index.html)",
+      "type": "shell",
+      "command": "${command:python.interpreterPath}",
+      "args": ["-m", "pytest", "--cov", "--cov-report=html"],
+      "problemMatcher": []
+    },
+    {
+      "label": "5. Regenerate README images",
+      "type": "shell",
+      "command": "${command:python.interpreterPath}",
+      "args": ["scripts/make_readme_images.py"],
+      "problemMatcher": []
+    }
+  ]
+}

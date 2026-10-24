@@ -2,6 +2,7 @@
 
 import json
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 from login_sentinel.cli import main
@@ -58,7 +59,8 @@ def test_markdown_report_written_to_file(tmp_path, capsys):
 def test_database_file_can_be_queried_afterwards(tmp_path, capsys):
     db = tmp_path / "events.db"
     main([*BOTH_LOGS, "--year", "2026", "--db", str(db)])
-    with sqlite3.connect(db) as conn:
+    # closing() actually closes the connection; sqlite3's own `with` only commits.
+    with closing(sqlite3.connect(db)) as conn:
         assert conn.execute("SELECT COUNT(*) FROM findings").fetchone()[0] == 6
         assert conn.execute("SELECT COUNT(*) FROM events WHERE success = 1").fetchone()[0] > 0
 
@@ -72,3 +74,26 @@ def test_file_with_no_login_events_returns_exit_code_2(tmp_path, capsys):
     path = tmp_path / "empty.log"
     path.write_text("nothing to see here\n")
     assert main([str(path)]) == 2
+
+
+def test_threshold_below_one_is_rejected(capsys):
+    assert main([*BOTH_LOGS, "--window", "0"]) == 2
+    assert "--window must be at least 1" in capsys.readouterr().err
+
+
+def test_csv_with_wrong_columns_returns_exit_code_2(tmp_path, capsys):
+    bad = tmp_path / "bad.csv"
+    bad.write_text("Time,Event\n2026-10-13T01:30:00,4625\n")
+    assert main([str(bad)]) == 2
+    assert "missing columns" in capsys.readouterr().err
+
+
+def test_runs_as_python_module():
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [sys.executable, "-m", "login_sentinel", "--version"], capture_output=True, text=True, check=False
+    )
+    assert result.returncode == 0
+    assert "login-sentinel 1.0.0" in result.stdout

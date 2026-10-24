@@ -1,0 +1,14 @@
+{
+  // Open this file in VS Code (File > Open Workspace from File...).
+  // Run/debug configurations live in .vscode/launch.json, tasks in .vscode/tasks.json.
+  "folders": [{ "path": "." }],
+  "extensions": {
+    "recommendations": [
+      "ms-python.python",
+      "ms-python.debugpy",
+      "ms-python.vscode-pylance",
+      "qwtel.sqlite-viewer",
+      "bierner.markdown-mermaid"
+    ]
+  }
+}

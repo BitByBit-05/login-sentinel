@@ -110,3 +110,10 @@ def test_run_all_sorts_most_severe_first():
     events = [event(i * 20, user="bob") for i in range(6)] + [event(130, user="bob", success=True)]
     findings = run_all(events, CONFIG)
     assert [f.rule for f in findings] == ["success_after_failures", "brute_force"]
+
+
+def test_two_sprays_hours_apart_are_reported_separately():
+    first = [event(i * 40, user=f"user{i}") for i in range(6)]
+    second = [event(7200 + i * 40, user=f"other{i}") for i in range(6)]
+    findings = detect_password_spray(first + second, CONFIG)
+    assert [len(f.users) for f in findings] == [6, 6]
