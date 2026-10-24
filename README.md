@@ -53,7 +53,7 @@ A normal working day has a handful of successful logins (blue) and the occasiona
 - **Three report formats:** plain text for the terminal, Markdown for tickets and wikis, JSON for other tools.
 - **Automation-friendly exit codes.** `--fail-on high` exits with code 1 when serious findings exist, so a scheduled job or pipeline can raise an alert.
 - **No dependencies.** It uses only the Python standard library. pytest is needed only for the tests, and matplotlib only to redraw the chart above.
-- **51 unit and end-to-end tests with 100% line coverage**, run on Python 3.10–3.13 by GitHub Actions on every push. CI fails if coverage drops below 95%.
+- **20 unit and end-to-end tests (94% line coverage)**, run on Python 3.10–3.13 by GitHub Actions on every push. CI fails if coverage drops below 90%.
 
 ## Detection rules
 
@@ -132,20 +132,19 @@ pytest -v --cov
 
 | Test file | What it checks | Tests |
 |-----------|----------------|------:|
-| [`test_parsers.py`](tests/test_parsers.py) | Each log line format, IPv6, skipped lines, the New Year rollover, Windows CSV columns and bad rows | 8 |
-| [`test_detectors.py`](tests/test_detectors.py) | The sliding window at, below and outside its thresholds, each rule's edge cases, and false positives that must stay quiet | 17 |
-| [`test_storage.py`](tests/test_storage.py) | SQLite schema, SQL summary queries, ordering, and that attacker-controlled log text can't inject SQL | 6 |
-| [`test_report.py`](tests/test_report.py) | All three report formats, empty reports, long account lists, attacks that cross midnight | 8 |
-| [`test_cli.py`](tests/test_cli.py) | End-to-end runs on the sample logs: exactly the 6 planted attacks are found, plus options, output files and exit codes | 12 |
+| [`test_parsers.py`](tests/test_parsers.py) | A failed SSH login line, "invalid user" lines, skipped non-login lines, the New Year rollover, and a Windows CSV | 5 |
+| [`test_detectors.py`](tests/test_detectors.py) | The sliding window, and each rule firing at its threshold but staying quiet just below it or on normal behaviour | 8 |
+| [`test_storage.py`](tests/test_storage.py) | The SQL "top IPs" query, and that attacker-controlled log text can't inject SQL | 2 |
+| [`test_cli.py`](tests/test_cli.py) | End-to-end runs on the sample logs: exactly the 6 planted attacks are found, normal users aren't flagged, plus report files and exit codes | 5 |
 
 The end-to-end tests are the strongest guarantee. They run the real command on the sample logs and check that it finds **exactly** the six planted attacks, and nothing from the normal users or the slow probing IP.
 
 The last lines of a full run:
 
 ```
-TOTAL                           279      0   100%
-Required test coverage of 95% reached. Total coverage: 100.00%
-============================== 51 passed in 0.35s ==============================
+TOTAL                           282     16    94%
+Required test coverage of 90% reached. Total coverage: 94.33%
+============================== 20 passed in 0.12s ==============================
 ```
 
 ## Usage
@@ -210,7 +209,7 @@ scripts/
   export_windows_events.ps1  Exports Windows logon events to CSV
   make_chart.py              Draws the chart in this README from the sample log
 sample_data/      Sample Linux and Windows logs
-tests/            51 pytest tests: parsers, rules, storage, reports, end-to-end CLI
+tests/            20 pytest tests: parsers, rules, storage, end-to-end CLI
 .vscode/          Run configurations, tasks and test settings for VS Code
 ```
 

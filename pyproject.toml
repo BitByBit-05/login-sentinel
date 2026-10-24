@@ -27,9 +27,6 @@ testpaths = ["tests"]
 
 [tool.coverage.run]
 source = ["login_sentinel"]
-# __main__.py is tested by test_runs_as_python_module, which starts a separate
-# Python process that coverage cannot measure.
-omit = ["login_sentinel/__main__.py"]
 
 [tool.coverage.report]
 show_missing = true
