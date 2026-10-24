@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "login-sentinel"
+version = "1.0.0"
+description = "Detect brute-force, password-spraying and account-compromise patterns in Linux and Windows login logs."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Ayush Ahir" }]
+dependencies = []  # standard library only
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.scripts]
+login-sentinel = "login_sentinel.cli:main"
+
+[tool.setuptools]
+packages = ["login_sentinel"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
