@@ -14,7 +14,7 @@ dependencies = []  # standard library only
 
 [project.optional-dependencies]
 dev = ["pytest>=7", "pytest-cov>=4"]
-charts = ["matplotlib>=3.7"]  # only needed to regenerate the README images
+charts = ["matplotlib>=3.7"]  # only needed to redraw the README chart
 
 [project.scripts]
 login-sentinel = "login_sentinel.cli:main"

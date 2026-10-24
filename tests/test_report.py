@@ -62,6 +62,6 @@ def test_markdown_report_has_tables():
 def test_json_report_structure():
     data = json.loads(report.to_json(STATS, [finding(), finding(Severity.HIGH)], TOP_IPS, skipped=2))
     assert data["summary"]["lines_skipped"] == 2
-    assert data["severity_counts"] == {"CRITICAL": 1, "HIGH": 1, "MEDIUM": 0, "LOW": 0}
+    assert data["severity_counts"] == {"CRITICAL": 1, "HIGH": 1}
     assert data["findings"][0]["first_seen"] == "2026-10-12T22:41:00"
     assert data["top_failed_ips"] == TOP_IPS

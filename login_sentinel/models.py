@@ -22,12 +22,10 @@ class LoginEvent:
 
 
 class Severity(IntEnum):
-    """Ordered so severities can be compared: Severity.HIGH > Severity.MEDIUM."""
+    """How serious a finding is. IntEnum makes them comparable: CRITICAL > HIGH."""
 
-    LOW = 1
-    MEDIUM = 2
-    HIGH = 3
-    CRITICAL = 4
+    HIGH = 1  # an attack is happening
+    CRITICAL = 2  # an attack probably worked
 
     def __str__(self) -> str:
         return self.name

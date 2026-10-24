@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 from login_sentinel.detectors import (
     DetectionConfig,
+    count_accounts,
     detect_brute_force,
     detect_password_spray,
     detect_success_after_failures,
@@ -20,21 +21,32 @@ def event(seconds, user="root", ip="203.0.113.45", success=False):
 
 # --- find_bursts -----------------------------------------------------------
 
+WINDOW = timedelta(minutes=10)
+
+
 def test_burst_needs_threshold_events_inside_window():
-    times = [START + timedelta(minutes=m) for m in (0, 1, 2, 3)]
-    assert find_bursts(times, threshold=5, window=timedelta(minutes=10)) == []
-    assert find_bursts(times, threshold=4, window=timedelta(minutes=10)) == [(0, 3)]
+    events = [event(60 * m) for m in (0, 1, 2, 3)]
+    assert find_bursts(events, threshold=5, window=WINDOW) == []
+    assert find_bursts(events, threshold=4, window=WINDOW) == [events]
 
 
 def test_events_spread_too_far_apart_are_not_a_burst():
-    times = [START + timedelta(minutes=12 * i) for i in range(10)]
-    assert find_bursts(times, threshold=3, window=timedelta(minutes=10)) == []
+    events = [event(12 * 60 * i) for i in range(10)]
+    assert find_bursts(events, threshold=3, window=WINDOW) == []
 
 
 def test_long_attack_becomes_one_burst_and_separate_attacks_stay_separate():
-    first = [START + timedelta(seconds=10 * i) for i in range(30)]
-    second = [START + timedelta(hours=2, seconds=10 * i) for i in range(6)]
-    assert find_bursts(first + second, threshold=5, window=timedelta(minutes=10)) == [(0, 29), (30, 35)]
+    first = [event(10 * i) for i in range(30)]
+    second = [event(7200 + 10 * i) for i in range(6)]
+    bursts = find_bursts(first + second, threshold=5, window=WINDOW)
+    assert [len(b) for b in bursts] == [30, 6]
+
+
+def test_count_accounts_measure_counts_different_users():
+    same_user = [event(i * 10) for i in range(6)]
+    different_users = [event(i * 10, user=f"user{i}") for i in range(6)]
+    assert find_bursts(same_user, threshold=5, window=WINDOW, measure=count_accounts) == []
+    assert len(find_bursts(different_users, threshold=5, window=WINDOW, measure=count_accounts)) == 1
 
 
 # --- brute force -----------------------------------------------------------

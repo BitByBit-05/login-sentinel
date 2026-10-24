@@ -11,7 +11,7 @@ what kind of attack each finding represents.
 | success_after_failures  | A login that works right after repeated failures  | T1078     |
 """
 
-from collections import Counter, defaultdict
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -39,51 +39,65 @@ def _duration(start: datetime, end: datetime) -> str:
     return f"{minutes} min {seconds} s" if minutes else f"{seconds} s"
 
 
-def find_bursts(times: list[datetime], threshold: int, window: timedelta) -> list[tuple[int, int]]:
-    """Find periods where at least `threshold` events happen within `window`.
+def find_bursts(events: list[LoginEvent], threshold: int, window: timedelta, measure=len) -> list[list[LoginEvent]]:
+    """Find periods where `measure(events in the window)` reaches `threshold`.
 
-    `times` must be sorted. Returns (start_index, end_index) pairs, inclusive.
+    `events` must be sorted by time. Returns one list of events per burst.
 
-    This is a sliding window with two pointers: `right` walks forward over
-    every event and `left` moves up until everything between them fits
-    inside the window. Whenever the window holds enough events we are inside
-    a burst; when it drops below the threshold the burst ends. Overlapping
-    windows are merged, so one long attack produces one finding instead of
-    dozens. It runs in O(n) time because each pointer only moves forward.
+    `measure` decides what is counted inside the window:
+      * brute force uses the default, len    -> how many failures
+      * spraying passes count_accounts       -> how many different accounts
+
+    How it works: a sliding window with two pointers. `right` walks forward
+    over every event, and `left` moves up until everything from left to
+    right fits inside the window. If the window measures at least
+    `threshold`, we are inside a burst. Windows that overlap are merged, so
+    one long attack gives one finding instead of dozens. The burst ends once
+    the next event is more than a whole window after the burst's last event.
     """
     bursts = []
     left = 0
-    burst_start = None
-    burst_end = None
+    burst_start = burst_end = None
 
-    for right in range(len(times)):
-        while times[right] - times[left] > window:
+    for right in range(len(events)):
+        while events[right].timestamp - events[left].timestamp > window:
             left += 1
-        if right - left + 1 >= threshold:
+        if measure(events[left : right + 1]) >= threshold:
             if burst_start is None:
                 burst_start = left
             burst_end = right
-        elif burst_start is not None and times[right] - times[burst_end] > window:
-            bursts.append((burst_start, burst_end))
+        elif burst_start is not None and events[right].timestamp - events[burst_end].timestamp > window:
+            bursts.append(events[burst_start : burst_end + 1])
             burst_start = None
 
     if burst_start is not None:
-        bursts.append((burst_start, burst_end))
+        bursts.append(events[burst_start : burst_end + 1])
     return bursts
 
 
-def detect_brute_force(events: list[LoginEvent], config: DetectionConfig) -> list[Finding]:
-    """Repeated failed logins against a single account from a single IP."""
-    failures = defaultdict(list)
+def count_accounts(events: list[LoginEvent]) -> int:
+    """How many different accounts appear in a list of events."""
+    return len({e.user for e in events})
+
+
+def _failures_grouped_by(events: list[LoginEvent], key) -> dict:
+    """Failed logins grouped by `key`, each group sorted by time."""
+    groups = defaultdict(list)
     for event in events:
         if not event.success:
-            failures[(event.source_ip, event.user)].append(event.timestamp)
+            groups[key(event)].append(event)
+    for group in groups.values():
+        group.sort(key=lambda e: e.timestamp)
+    return groups
 
+
+def detect_brute_force(events: list[LoginEvent], config: DetectionConfig) -> list[Finding]:
+    """Repeated failed logins against one account from one IP."""
     findings = []
-    for (ip, user), times in failures.items():
-        times.sort()
-        for start, end in find_bursts(times, config.brute_force_threshold, config.window):
-            count = end - start + 1
+    groups = _failures_grouped_by(events, key=lambda e: (e.source_ip, e.user))
+    for (ip, user), failures in groups.items():
+        for burst in find_bursts(failures, config.brute_force_threshold, config.window):
+            first, last = burst[0].timestamp, burst[-1].timestamp
             findings.append(
                 Finding(
                     rule="brute_force",
@@ -91,11 +105,10 @@ def detect_brute_force(events: list[LoginEvent], config: DetectionConfig) -> lis
                     mitre_technique="T1110.001",
                     source_ip=ip,
                     users=[user],
-                    first_seen=times[start],
-                    last_seen=times[end],
-                    event_count=count,
-                    description=f"{count} failed logins for '{user}' from {ip} "
-                    f"in {_duration(times[start], times[end])}",
+                    first_seen=first,
+                    last_seen=last,
+                    event_count=len(burst),
+                    description=f"{len(burst)} failed logins for '{user}' from {ip} in {_duration(first, last)}",
                 )
             )
     return findings
@@ -105,44 +118,14 @@ def detect_password_spray(events: list[LoginEvent], config: DetectionConfig) -> 
     """One IP trying many different accounts, usually with a few common passwords.
 
     Spraying avoids account lockouts by trying each account only once or
-    twice, so it slips past the brute-force rule. The signal is the number
-    of *distinct* accounts in the window, not the number of attempts. It
-    uses the same two-pointer sliding window as find_bursts, with a Counter
-    tracking how many times each account appears inside the window.
+    twice, so the brute-force rule never fires. The signal is the number of
+    *different* accounts in the window, so the same find_bursts is used with
+    count_accounts as the measure.
     """
-    failures = defaultdict(list)
-    for event in events:
-        if not event.success:
-            failures[event.source_ip].append(event)
-
     findings = []
-    for ip, ip_events in failures.items():
-        ip_events.sort(key=lambda e: e.timestamp)
-        users_in_window = Counter()
-        bursts = []
-        left = 0
-        burst_start = burst_end = None
-
-        for right, event in enumerate(ip_events):
-            users_in_window[event.user] += 1
-            while event.timestamp - ip_events[left].timestamp > config.window:
-                users_in_window[ip_events[left].user] -= 1
-                if users_in_window[ip_events[left].user] == 0:
-                    del users_in_window[ip_events[left].user]
-                left += 1
-
-            if len(users_in_window) >= config.spray_user_threshold:
-                if burst_start is None:
-                    burst_start = left
-                burst_end = right
-            elif burst_start is not None and event.timestamp - ip_events[burst_end].timestamp > config.window:
-                bursts.append((burst_start, burst_end))
-                burst_start = None
-        if burst_start is not None:
-            bursts.append((burst_start, burst_end))
-
-        for start, end in bursts:
-            burst = ip_events[start : end + 1]
+    for ip, failures in _failures_grouped_by(events, key=lambda e: e.source_ip).items():
+        for burst in find_bursts(failures, config.spray_user_threshold, config.window, measure=count_accounts):
+            first, last = burst[0].timestamp, burst[-1].timestamp
             users = sorted({e.user for e in burst})
             findings.append(
                 Finding(
@@ -151,11 +134,11 @@ def detect_password_spray(events: list[LoginEvent], config: DetectionConfig) -> 
                     mitre_technique="T1110.003",
                     source_ip=ip,
                     users=users,
-                    first_seen=burst[0].timestamp,
-                    last_seen=burst[-1].timestamp,
+                    first_seen=first,
+                    last_seen=last,
                     event_count=len(burst),
-                    description=f"{len(burst)} failed logins across {len(users)} different "
-                    f"accounts from {ip} in {_duration(burst[0].timestamp, burst[-1].timestamp)}",
+                    description=f"{len(burst)} failed logins across {len(users)} different accounts "
+                    f"from {ip} in {_duration(first, last)}",
                 )
             )
     return findings

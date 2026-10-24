@@ -4,7 +4,7 @@
 - **Time range:** 2026-10-12T02:05:00 to 2026-10-13T23:05:30
 - **Unique IPs:** 14 · **Unique accounts:** 23
 - **Lines skipped:** 120
-- **Findings:** 2 critical, 4 high, 0 medium, 0 low
+- **Findings:** 2 critical, 4 high
 
 ## Findings
 

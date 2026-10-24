@@ -36,10 +36,10 @@
       "problemMatcher": []
     },
     {
-      "label": "5. Regenerate README images",
+      "label": "5. Redraw the README chart",
       "type": "shell",
       "command": "${command:python.interpreterPath}",
-      "args": ["scripts/make_readme_images.py"],
+      "args": ["scripts/make_chart.py"],
       "problemMatcher": []
     }
   ]
